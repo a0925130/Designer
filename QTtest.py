@@ -210,8 +210,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         while True:
             if self.ProcessCam.g & self.lamp_state:
                 self.warning_display.setText("[Error] 燈光未開")
-            if not self.ProcessCam.g & self.lamp_state:
-                self.warning_display.setText("")
             if not self.ProcessRobot.client.connect():
                 self.warning_display.setText("[Error] Fail to connect to robot")
             if (not self.ProcessCam.r) & self.robot_state:
