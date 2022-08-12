@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1269, 878)
+        MainWindow.resize(1269, 998)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.viewData = QtWidgets.QLabel(self.centralwidget)
@@ -22,7 +22,7 @@ class Ui_MainWindow(object):
         self.viewData.setText("")
         self.viewData.setObjectName("viewData")
         self.verticalLayoutWidget = QtWidgets.QWidget(self.centralwidget)
-        self.verticalLayoutWidget.setGeometry(QtCore.QRect(10, 731, 1011, 111))
+        self.verticalLayoutWidget.setGeometry(QtCore.QRect(10, 850, 1231, 111))
         self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
@@ -42,7 +42,7 @@ class Ui_MainWindow(object):
         self.label.setFont(font)
         self.label.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.label.setStyleSheet("background-color: blue;\n"
-                                 "color:white;")
+"color:white;")
         self.label.setAlignment(QtCore.Qt.AlignCenter)
         self.label.setObjectName("label")
         self.label_6 = QtWidgets.QLabel(self.centralwidget)
@@ -52,7 +52,7 @@ class Ui_MainWindow(object):
         self.label_6.setFont(font)
         self.label_6.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.label_6.setStyleSheet("background-color: blue;\n"
-                                   "color:white;")
+"color:white;")
         self.label_6.setAlignment(QtCore.Qt.AlignCenter)
         self.label_6.setObjectName("label_6")
         self.horizontalLayoutWidget = QtWidgets.QWidget(self.centralwidget)
@@ -63,29 +63,29 @@ class Ui_MainWindow(object):
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
         self.lamp_status = QtWidgets.QLabel(self.horizontalLayoutWidget)
         self.lamp_status.setStyleSheet("background-color: red;\n"
-                                       "border-radius: 85px;\n"
-                                       "")
+"border-radius: 85px;\n"
+"")
         self.lamp_status.setText("")
         self.lamp_status.setObjectName("lamp_status")
         self.horizontalLayout_4.addWidget(self.lamp_status)
         self.robot_status = QtWidgets.QLabel(self.horizontalLayoutWidget)
         self.robot_status.setStyleSheet("background-color: red;\n"
-                                        "border-radius: 85px;\n"
-                                        "")
+"border-radius: 85px;\n"
+"")
         self.robot_status.setText("")
         self.robot_status.setObjectName("robot_status")
         self.horizontalLayout_4.addWidget(self.robot_status)
         self.track_status = QtWidgets.QLabel(self.horizontalLayoutWidget)
         self.track_status.setStyleSheet("background-color: red;\n"
-                                        "border-radius: 85px;\n"
-                                        "")
+"border-radius: 85px;\n"
+"")
         self.track_status.setText("")
         self.track_status.setObjectName("track_status")
         self.horizontalLayout_4.addWidget(self.track_status)
         self.camera_status = QtWidgets.QLabel(self.horizontalLayoutWidget)
         self.camera_status.setStyleSheet("background-color: red;\n"
-                                         "border-radius: 85px;\n"
-                                         "")
+"border-radius: 85px;\n"
+"")
         self.camera_status.setText("")
         self.camera_status.setObjectName("camera_status")
         self.horizontalLayout_4.addWidget(self.camera_status)
@@ -107,8 +107,8 @@ class Ui_MainWindow(object):
         self.Open_all.setFont(font)
         self.Open_all.setAutoFillBackground(False)
         self.Open_all.setStyleSheet("background-color: green;\n"
-                                    "border-radius: 50px;\n"
-                                    "color:white;")
+"border-radius: 50px;\n"
+"color:white;")
         self.Open_all.setObjectName("Open_all")
         self.horizontalLayout.addWidget(self.Open_all)
         self.emergency = QtWidgets.QPushButton(self.layoutWidget)
@@ -122,8 +122,8 @@ class Ui_MainWindow(object):
         font.setPointSize(22)
         self.emergency.setFont(font)
         self.emergency.setStyleSheet("background-color: red;\n"
-                                     "border-radius: 50px;\n"
-                                     "color:white;")
+"border-radius: 50px;\n"
+"color:white;")
         self.emergency.setObjectName("emergency")
         self.horizontalLayout.addWidget(self.emergency)
         self.layoutWidget1 = QtWidgets.QWidget(self.centralwidget)
@@ -144,7 +144,7 @@ class Ui_MainWindow(object):
         font.setPointSize(18)
         self.track.setFont(font)
         self.track.setStyleSheet("background-color:white;\n"
-                                 "border-radius: 50px;")
+"border-radius: 50px;")
         self.track.setObjectName("track")
         self.verticalLayout_2.addWidget(self.track)
         self.robot_button = QtWidgets.QPushButton(self.layoutWidget1)
@@ -157,7 +157,7 @@ class Ui_MainWindow(object):
         font.setPointSize(18)
         self.robot_button.setFont(font)
         self.robot_button.setStyleSheet("background-color:white;\n"
-                                        "border-radius: 50px;")
+"border-radius: 50px;")
         self.robot_button.setObjectName("robot_button")
         self.verticalLayout_2.addWidget(self.robot_button)
         self.horizontalLayout_2.addLayout(self.verticalLayout_2)
@@ -173,7 +173,7 @@ class Ui_MainWindow(object):
         font.setPointSize(18)
         self.Camera_switch.setFont(font)
         self.Camera_switch.setStyleSheet("background-color:white;\n"
-                                         "border-radius: 50px;")
+"border-radius: 50px;")
         self.Camera_switch.setObjectName("Camera_switch")
         self.verticalLayout_3.addWidget(self.Camera_switch)
         self.lamp_switch = QtWidgets.QPushButton(self.layoutWidget1)
@@ -186,7 +186,7 @@ class Ui_MainWindow(object):
         font.setPointSize(18)
         self.lamp_switch.setFont(font)
         self.lamp_switch.setStyleSheet("background-color:white;\n"
-                                       "border-radius: 50px;")
+"border-radius: 50px;")
         self.lamp_switch.setObjectName("lamp_switch")
         self.verticalLayout_3.addWidget(self.lamp_switch)
         self.horizontalLayout_2.addLayout(self.verticalLayout_3)
@@ -202,8 +202,7 @@ class Ui_MainWindow(object):
         self.label_2.setFont(font)
         self.label_2.setLayoutDirection(QtCore.Qt.RightToLeft)
         self.label_2.setAlignment(QtCore.Qt.AlignCenter)
-        self.label_2.setTextInteractionFlags(
-            QtCore.Qt.LinksAccessibleByMouse | QtCore.Qt.TextSelectableByKeyboard | QtCore.Qt.TextSelectableByMouse)
+        self.label_2.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse|QtCore.Qt.TextSelectableByKeyboard|QtCore.Qt.TextSelectableByMouse)
         self.label_2.setObjectName("label_2")
         self.horizontalLayout_3.addWidget(self.label_2)
         self.label_4 = QtWidgets.QLabel(self.layoutWidget2)
@@ -227,8 +226,27 @@ class Ui_MainWindow(object):
         self.label_3.setAlignment(QtCore.Qt.AlignCenter)
         self.label_3.setObjectName("label_3")
         self.horizontalLayout_3.addWidget(self.label_3)
-        self.stop_all = QtWidgets.QPushButton(self.centralwidget)
-        self.stop_all.setGeometry(QtCore.QRect(1050, 720, 171, 131))
+        self.layoutWidget3 = QtWidgets.QWidget(self.centralwidget)
+        self.layoutWidget3.setGeometry(QtCore.QRect(830, 720, 391, 131))
+        self.layoutWidget3.setObjectName("layoutWidget3")
+        self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.layoutWidget3)
+        self.horizontalLayout_5.setContentsMargins(0, 0, 0, 0)
+        self.horizontalLayout_5.setObjectName("horizontalLayout_5")
+        self.ready = QtWidgets.QPushButton(self.layoutWidget3)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.ready.sizePolicy().hasHeightForWidth())
+        self.ready.setSizePolicy(sizePolicy)
+        font = QtGui.QFont()
+        font.setPointSize(18)
+        self.ready.setFont(font)
+        self.ready.setStyleSheet("background-color: green;\n"
+"border-radius: 50px;\n"
+"color:white;")
+        self.ready.setObjectName("ready")
+        self.horizontalLayout_5.addWidget(self.ready)
+        self.stop_all = QtWidgets.QPushButton(self.layoutWidget3)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -238,9 +256,48 @@ class Ui_MainWindow(object):
         font.setPointSize(18)
         self.stop_all.setFont(font)
         self.stop_all.setStyleSheet("background-color: red;\n"
-                                    "border-radius: 50px;\n"
-                                    "color:white;")
+"border-radius: 50px;\n"
+"color:white;")
         self.stop_all.setObjectName("stop_all")
+        self.horizontalLayout_5.addWidget(self.stop_all)
+        self.verticalLayoutWidget_2 = QtWidgets.QWidget(self.centralwidget)
+        self.verticalLayoutWidget_2.setGeometry(QtCore.QRect(10, 730, 211, 121))
+        self.verticalLayoutWidget_2.setObjectName("verticalLayoutWidget_2")
+        self.verticalLayout_4 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_2)
+        self.verticalLayout_4.setContentsMargins(0, 0, 0, 0)
+        self.verticalLayout_4.setObjectName("verticalLayout_4")
+        self.label_7 = QtWidgets.QLabel(self.verticalLayoutWidget_2)
+        font = QtGui.QFont()
+        font.setPointSize(24)
+        self.label_7.setFont(font)
+        self.label_7.setObjectName("label_7")
+        self.verticalLayout_4.addWidget(self.label_7)
+        self.label_8 = QtWidgets.QLabel(self.verticalLayoutWidget_2)
+        font = QtGui.QFont()
+        font.setPointSize(24)
+        self.label_8.setFont(font)
+        self.label_8.setObjectName("label_8")
+        self.verticalLayout_4.addWidget(self.label_8)
+        self.verticalLayoutWidget_3 = QtWidgets.QWidget(self.centralwidget)
+        self.verticalLayoutWidget_3.setGeometry(QtCore.QRect(220, 730, 211, 121))
+        self.verticalLayoutWidget_3.setObjectName("verticalLayoutWidget_3")
+        self.verticalLayout_5 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_3)
+        self.verticalLayout_5.setContentsMargins(0, 0, 0, 0)
+        self.verticalLayout_5.setObjectName("verticalLayout_5")
+        self.Total = QtWidgets.QLabel(self.verticalLayoutWidget_3)
+        font = QtGui.QFont()
+        font.setPointSize(24)
+        self.Total.setFont(font)
+        self.Total.setText("")
+        self.Total.setObjectName("Total")
+        self.verticalLayout_5.addWidget(self.Total)
+        self.NG = QtWidgets.QLabel(self.verticalLayoutWidget_3)
+        font = QtGui.QFont()
+        font.setPointSize(24)
+        self.NG.setFont(font)
+        self.NG.setText("")
+        self.NG.setObjectName("NG")
+        self.verticalLayout_5.addWidget(self.NG)
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
@@ -264,4 +321,7 @@ class Ui_MainWindow(object):
         self.label_4.setText(_translate("MainWindow", "手臂狀態"))
         self.label_5.setText(_translate("MainWindow", "履帶狀態"))
         self.label_3.setText(_translate("MainWindow", "影像狀況"))
+        self.ready.setText(_translate("MainWindow", "伺服準備"))
         self.stop_all.setText(_translate("MainWindow", "關閉"))
+        self.label_7.setText(_translate("MainWindow", "工件完成數量："))
+        self.label_8.setText(_translate("MainWindow", "不良品數量："))

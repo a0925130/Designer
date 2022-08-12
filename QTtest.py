@@ -11,6 +11,13 @@ import pyfirmata
 from pymodbus.client.sync import ModbusTcpClient
 import os
 
+
+# R20000 成品放置數量
+# R20001 成品是否到達指定位置
+# R20002 是否吸取成品成功
+# R20003 tray數量
+# R20004 伺服開關
+# R20005 緊急開關
 class Robot:
     def __init__(self):
         HOST = '192.168.0.1'
@@ -52,6 +59,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.robot_state = False
         self.lamp_state = False
         self.frame_num = 0
+        self.NG_num = np.loadtxt("NG_num.txt", dtype=int)
         # 設定手臂
         self.ProcessRobot = Robot()
         if not self.ProcessRobot.client.connect():
@@ -76,16 +84,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.Open_all.clicked.connect(self.open_alls)
         self.emergency.clicked.connect(self.all_stop)
         self.stop_all.clicked.connect(self.all_close)
+        self.ready.clicked.connect(self.ready_Process)
         self.robot_button.clicked.connect(self.robotswitch)
         self.lamp_switch.clicked.connect(self.lampswitch)
 
+    def ready_Process(self):
+        self.ProcessRobot.client.write_registers(40010, [0, 0], unit=1)
+        time.sleep(0.1)
+        self.ProcessRobot.client.write_registers(40008, [0, 1], unit=1)
 
     def all_stop(self):
         self.ProcessCam.stop()  # 影像讀取功能關閉
         self.camera_state = False
         self.camera_status.setStyleSheet("background-color : red;\n""border-radius: 85px;")
 
-        self.ProcessRobot.stop()
+        self.ProcessRobot.client.write_registers(40010, [0, 1], unit=1)
         self.robot_state = False
         self.robot_status.setStyleSheet("background-color : yellow;\n""border-radius: 85px;")
 
@@ -101,6 +114,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.ProcessRobot.stop()
         self.ProcessRobot.reset()
+        self.ProcessRobot.client.write_registers(40010, [0, 0], unit=1)
+        self.ProcessRobot.client.write_registers(40008, [0, 0], unit=1)
         self.robot_state = False
         self.robot_status.setStyleSheet("background-color : red;\n""border-radius: 85px;")
 
@@ -115,10 +130,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.ProcessCam.start()
         self.camera_state = True
         self.camera_status.setStyleSheet("background-color : green;\n""border-radius: 85px;")
-
-        self.ProcessRobot.start()
-        self.robot_state = True
-        self.robot_status.setStyleSheet("background-color : green;\n""border-radius: 85px;")
+        if not self.ProcessRobot.client.read_holding_registers(40011, 1, unit=1).registers[0]:
+            self.ProcessRobot.start()
+            self.robot_state = True
+            self.robot_status.setStyleSheet("background-color : green;\n""border-radius: 85px;")
+        else:
+            self.robot_status.setStyleSheet("background-color : red;\n""border-radius: 85px;")
+            self.warning_display.setText("[Warning] 手臂處於急停模式")
 
         self.ProcessCam.board.digital[8].write(0)
         time.sleep(0.1)
@@ -182,6 +200,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.warning_display.setText("[Error] Fail to connect to robot")
         if (not self.ProcessCam.r) & self.robot_state:
             self.ProcessRobot.client.write_registers(40002, [0, 1], unit=1)
+            if self.ProcessCam.error:
+                self.all_stop()
+                self.warning_display.setText("[Warning] 檢測到不良品")
+                self.NG_num += 1
+                self.NG.setText(str(self.NG_num))
+                np.savetxt("NG_num.txt", np.array(self.NG_num))
         else:
             self.ProcessRobot.client.write_registers(40002, [0, 0], unit=1)
         if self.ProcessRobot.client.read_holding_registers(40005, 1, unit=1).registers == [3]:
@@ -189,14 +213,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.robot_state = False
             self.robot_status.setStyleSheet("background-color : yellow;\n""border-radius: 85px;")
             self.ProcessRobot.stop()
-            self.ProcessRobot.client.write_registers(40004, [0, 1], unit=1)
+            self.ProcessRobot.client.write_registers(40004, [0, 0], unit=1)
+        if self.ProcessRobot.client.read_holding_registers(40005, 1, unit=1).registers == [2]:
+            self.warning_display.setText("[Error] 吸取Tray盤失敗")
+            self.robot_state = False
+            self.robot_status.setStyleSheet("background-color : yellow;\n""border-radius: 85px;")
+            self.ProcessRobot.stop()
+            self.ProcessRobot.client.write_registers(40004, [0, 0], unit=1)
+        if self.ProcessRobot.client.read_holding_registers(40000, 1, unit=1).registers <= [8]:
+            num = self.ProcessRobot.client.read_holding_registers(40000, 1, unit=1).registers[0] + (
+                        self.ProcessRobot.client.read_holding_registers(40006, 1, unit=1).registers[0] * 8)
+            self.total.setText(str(num))
+        else:
+            num = 8 + (self.ProcessRobot.client.read_holding_registers(40006, 1, unit=1).registers[0] * 8)
+            self.total.setText(str(num))
 
     def showData(self, img):
         """ 顯示攝影機的影像 """
         self.Ny, self.Nx, _ = img.shape  # 取得影像尺寸
-
-        # 建立 Qimage 物件 (灰階格式)
-        # qimg = QtGui.QImage(img[:,:,0].copy().data, self.Nx, self.Ny, QtGui.QImage.Format_Indexed8)
 
         # 建立 Qimage 物件 (RGB格式)
         qimg = QImage(img.data, self.Nx, self.Ny, QImage.Format_RGB888)
@@ -238,23 +272,44 @@ class Camera(QtCore.QThread):  # 繼承 QtCore.QThread 來建立 Camera 類別
         super().__init__(parent)
         # 建立 cv2 的攝影機物件
         # 設定攝影機 把自動調整的寫死
-        self.cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-        self.cam.set(cv2.CAP_PROP_EXPOSURE, -6)  # 曝光
-        self.cam.set(cv2.CAP_PROP_FOCUS, 65)  # 焦距
-        # cap.set(cv2.CAP_PROP_SETTINGS, 0)  # 相機設定介面
+        self.cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+        self.cap.set(cv2.CAP_PROP_EXPOSURE, -6)  # 曝光
+        self.cap.set(cv2.CAP_PROP_FOCUS, 65)  # 焦距
         # 其他參數和設定
-        self.startTime = 0
-        num = 0
-        self.reg_x0, self.reg_y0, self.reg_h, self.reg_w = [105, 220, 250, 500]  # 辨識區域
-        self.detect_on_off = False
-        self.detecting = False
-        self.save_pic = False
-        self.finish = False
-        self.top_green = [57, 46, 41]
-        self.bot_green = [125, 133, 109]
+        self.startTime = 0  # 料盤進入時間
+        self.curTime = 0  # 料盤進入時間
+        self.num = 0  # 總畫面數
+        self.detecting = False  # 料盤是否進入
+        self.save_pic = False  # 是否儲存偵測畫面
+        self.finish = False  # 是否完成偵測
+        self.hash_val = [None] * 3  # 哈希值
+        # 辨識區域相關參數
+        self.reg_x0, self.reg_y0, self.reg_h, self.reg_w = [105, 225, 250, 500]  # 辨識區域
+        self.region_list = np.int0(
+            [[self.reg_x0, self.reg_y0], [self.reg_x0 + self.reg_w, self.reg_y0],
+             [self.reg_x0 + self.reg_w, self.reg_y0 + self.reg_h], [self.reg_x0, self.reg_y0 + self.reg_h]])
+        self.top_green = [56, 62, 31]  # 上框線平均顏色(綠色)
+        self.bot_green = [140, 151, 131]  # 下框線平均顏色(綠色)
 
-        self.focus = []
-        self.tray = 0
+        # 檢查
+        self.white_th = [95.5, 95.5, 125.5]  # 避免剛好某一幀白點數量剛好等於閥值 導致出問題 所以刻意加上小數
+        self.count_max = [10, 8, 9]  # 鉚釘數量最大值
+        self.white_max = [0, 0, 0]  # 白點最大值
+        self.pass_count = [0, 0, 0]  # 鉚釘通過計數器(輪廓)
+        self.time_count = [0, 0, 0]  # 鉚釘通過計數器(時間)
+        self.loss_count = [0, 0, 0]  # 異常鉚釘數量
+        self.tray = 0  # 料盤通過數量
+
+        # 辨識框寬度
+        self.normal = np.array([[135, 185], [245, 300], [325, 380]])  # 普通鉚釘
+        self.spetial = np.array([[260, 315], [305, 360], [220, 275]])  # 特例鉚釘 1.中間 2.右邊 3.中間
+        self.tl = 35  # 上線
+        self.ml = 75  # 中線
+        self.bl = 95  # 下線
+        self.cut_left = [21, 56, 90, 123, 156, 168, 186, 223, 256, 290]  # 左邊鉚釘截圖幀數
+        self.cut_middle = [21, 34, 68, 96, 135, 207, 230, 270]  # 中間鉚釘截圖幀數
+        self.cut_right = [56, 90, 123, 156, 168, 187, 223, 256, 290]  # 右邊鉚釘截圖幀數
+        self.error = False
 
         # 判斷攝影機是否正常連接
         if self.cam is None or not self.cam.isOpened():
@@ -280,120 +335,196 @@ class Camera(QtCore.QThread):  # 繼承 QtCore.QThread 來建立 Camera 類別
         """
         # 當正常連接攝影機才能進入迴圈
         while self.running and self.connect:
-            ret, img = self.cam.read()  # 讀取影像
+            ret, img = self.cpa.read()  # 讀取影像
             clear_frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             if ret:
                 current_frame = clear_frame.copy()  # 避免直接在原始畫面上作圖
                 # 框出辨識區域
                 cmr_region = clear_frame[self.reg_y0:self.reg_y0 + self.reg_h, self.reg_x0:self.reg_x0 + self.reg_w]
                 gray_cmr_region = cv2.cvtColor(cmr_region, cv2.COLOR_BGR2GRAY)  # 灰階
-                region_list = np.int0([[self.reg_x0, self.reg_y0], [self.reg_x0 + self.reg_w, self.reg_y0], [self.reg_x0 + self.reg_w, self.reg_y0 + self.reg_h],
-                                       [self.reg_x0, self.reg_y0 + self.reg_h]])
-
                 '''邊緣偵測'''
                 blur = cv2.GaussianBlur(gray_cmr_region, (5, 5), 0)
                 canny = cv2.Canny(blur, 20, 160)  # , 20, 160)
                 canny = cv2.cvtColor(canny, cv2.COLOR_GRAY2RGB)
 
-                '''組合圖片'''
-                cur_reg = np.hstack((canny, cmr_region))
-
+                # canny = cv2.Canny(gray_cmr_region, 20, 160)  # , 20, 160)
+                # canny = cv2.cvtColor(canny, cv2.COLOR_GRAY2RGB)
                 '''偵測零件'''
-                # 由上往下
-                # 設定上辨識線
-
+                # 設定上框線
                 top_line = clear_frame[int(self.reg_y0), int(self.reg_x0):int(self.reg_x0 + self.reg_w)]
                 top_mean = np.int0(np.mean(top_line, axis=0))
                 top_color = (int(top_mean[0]), int(top_mean[1]), int(top_mean[2]))
-                # 設定下辨識線
-
+                # 設定下框線
                 bot_line = clear_frame[int(self.reg_y0 + self.reg_h), int(self.reg_x0):int(self.reg_x0 + self.reg_w)]
                 bot_mean = np.int0(np.mean(bot_line, axis=0))
                 bot_color = (int(bot_mean[0]), int(bot_mean[1]), int(bot_mean[2]))
 
-                # 上辨識線偵測到非綠色的 就開始辨識
-                if self.detect_on_off:
-                    if not self.detecting:
-                        # 開始偵測
-                        top_err0 = abs(top_mean[0] - self.top_green[0])
-                        top_err1 = abs(top_mean[1] - self.top_green[1])
-                        top_err2 = abs(top_mean[2] - self.top_green[2])
-                        if (top_err0 > 15 and top_err1 > 15 and top_err2 > 15):
-                            cv2.drawContours(current_frame, [region_list], -1, (0, 0, 255), 2)  # 外框變紅色表示偵測中
-                            cv2.line(current_frame, [self.reg_x0, int(self.reg_y0 + 0.5 * self.reg_h)],
-                                     [self.reg_x0 + self.reg_w, int(self.reg_y0 + 0.5 * self.reg_h)], (255, 255, 0), 1)
-                            cv2.line(canny, [self.reg_x0, int(self.reg_y0 + 0.5 * self.reg_h)],
-                                     [self.reg_x0 + self.reg_w, int(self.reg_y0 + 0.5 * self.reg_h)], (255, 255, 0), 1)
-                            self.startTime = time.time()  # 開始計時
-                            # 生成資料夾 如果資料夾已經存在會有錯誤
-                            if self.save_pic:
-                                folder_name = f"test"
-                                folder_path = "C:/Users/ccu/Documents/oCam"
-                                path = os.path.join(folder_path, folder_name)
-                                os.mkdir(path)
-                            self.detecting = True
-                        # 閒置
+                if not detecting:  # 沒有在偵測
+                    top_err0 = abs(top_mean[0] - self.top_green[0])
+                    top_err1 = abs(top_mean[1] - self.top_green[1])
+                    top_err2 = abs(top_mean[2] - self.top_green[2])
+                    if top_err0 > 10 and top_err1 > 10 and top_err2 > 10:  # 開始偵測的條件
+                        cv2.drawContours(current_frame, [self.region_list], -1, (0, 0, 255), 2)  # 外框變紅色表示開始偵測
+                        self.startTime = time.time()  # 開始計時
+                        self.tray += 1
+                        detecting = True
+                    else:  # 閒置
+                        cv2.drawContours(current_frame, [self.region_list], -1, (0, 255, 0), 2)  # 外框變綠色表示閒置
+                else:  # 偵測中
+                    top_err0 = abs(top_mean[0] - self.top_green[0])
+                    top_err1 = abs(top_mean[1] - self.top_green[1])
+                    top_err2 = abs(top_mean[2] - self.top_green[2])
+                    bot_err0 = abs(bot_mean[0] - self.bot_green[0])
+                    bot_err1 = abs(bot_mean[1] - self.bot_green[1])
+                    bot_err2 = abs(bot_mean[2] - self.bot_green[2])
+                    # 結束偵測的條件
+                    if (
+                            top_err0 < 10 and top_err1 < 10 and top_err2 < 10 and bot_err0 < 10 and bot_err1 < 10 and bot_err2 < 10) \
+                            or self.finish or self.curTime >= 11:
+                        cv2.drawContours(current_frame, [self.region_list], -1, (0, 255, 0), 2)  # 外框變綠色表示閒置
+                        self.curTime = time.time() - self.startTime
+                        print('第' + str(self.tray).rjust(2,
+                                                          ' ') + '次: 花費時間:%.2F秒, %.0F frams, 鉚釘數量:%.0F/10,%.0F/8,%.0F/9' % (
+                                  self.curTime, self.num, self.pass_count[0], self.pass_count[1], self.pass_count[2]))
+                        # 重置
+                        self.white_max = [0, 0, 0]
+                        self.startTime = 0
+                        self.curTime = 0
+                        self.num = 0
+                        self.hash_val = [None] * 3
+                        self.white_max = [0, 0, 0]
+                        self.pass_count = [0, 0, 0]
+                        self.time_count = [0, 0, 0]
+                        self.loss_count = [0, 0, 0]
+                        self.finish = False
+                        self.save_pic = False
+                        self.detecting = False
+                    else:  # 偵測中
+                        cv2.drawContours(current_frame, [self.region_list], -1, (0, 0, 255), 2)  # 外框變紅色表示偵測中
+                        '''檢查鉚釘'''
+                        # 改變辨識框區域
+                        if self.num < 28:
+                            check = np.array(
+                                [[[self.normal[0, 0], self.tl], [self.normal[0, 1], self.bl]],
+                                 [[self.spetial[0, 0], self.tl], [self.spetial[0, 1], self.bl]],
+                                 [[self.normal[2, 0], self.tl], [self.normal[2, 1], self.bl]]])
+                        elif 175 < self.num <= 195:
+                            check = np.array(
+                                [[[self.normal[0, 0], self.tl], [self.normal[0, 1], self.bl]],
+                                 [[self.normal[1, 0], self.tl], [self.normal[1, 1], self.bl]],
+                                 [[self.spetial[1, 0], self.tl], [self.spetial[1, 1], self.bl]]])
+                        elif 195 < self.num <= 220:
+                            check = np.array(
+                                [[[self.normal[0, 0], self.tl], [self.normal[0, 1], self.bl]],
+                                 [[self.spetial[2, 0], self.tl], [self.spetial[2, 1], self.bl]],
+                                 [[self.normal[2, 0], self.tl], [self.normal[2, 1], self.bl]]])
                         else:
-                            cv2.drawContours(current_frame, [region_list], -1, (0, 255, 0), 2)  # 外框變綠色表示閒置
-                            cv2.line(current_frame, [self.reg_x0, int(self.reg_y0 + 0.5 * self.reg_h)],
-                                     [self.reg_x0 + self.reg_w, int(self.reg_y0 + 0.5 * self.reg_h)], (255, 255, 0), 1)
-                            cv2.line(canny, [self.reg_x0, int(self.reg_y0 + 0.5 * self.reg_h)],
-                                     [self.reg_x0 + self.reg_w, int(self.reg_y0 + 0.5 * self.reg_h)], (255, 255, 0), 1)
-                    else:
-                        # 結束偵測
-                        top_err0 = abs(top_mean[0] - self.top_green[0])
-                        top_err1 = abs(top_mean[1] - self.top_green[1])
-                        top_err2 = abs(top_mean[2] - self.top_green[2])
-                        bot_err0 = abs(bot_mean[0] - self.bot_green[0])
-                        bot_err1 = abs(bot_mean[1] - self.bot_green[1])
-                        bot_err2 = abs(bot_mean[2] - self.bot_green[2])
-                        if (top_err0 < 15 and top_err1 < 15 and top_err2 < 15) and (
-                                bot_err0 < 15 and bot_err1 < 15 and bot_err2 < 15) or self.finish:
-                            cv2.drawContours(current_frame, [region_list], -1, (0, 255, 0), 2)  # 外框變綠色表示閒置
-                            curTime = time.time() - self.startTime
-                            if self.save_pic:
-                                print('第%.0F次 花費時間: %.2F, Frams: %.0F' % (self.tray, curTime, num))
-                            else:
-                                print('花費時間: %.2F, Frams: %.0F' % (curTime, num))
-                            # print(np.mean(self.focus))
-                            self.startTime = 0
-                            num = 0
-                            self.detecting = False
-                            self.finish = False
-                        # 偵測中
+                            check = np.array(
+                                [[[self.normal[0, 0], self.tl], [self.normal[0, 1], self.bl]],
+                                 [[self.normal[1, 0], self.tl], [self.normal[1, 1], self.bl]],
+                                 [[self.normal[2, 0], self.tl], [self.normal[2, 1], self.bl]]])
+                        # 改變辨識框大小
+                        if self.num >= 165:
+                            self.ml = 85
                         else:
-                            cv2.drawContours(current_frame, [region_list], -1, (0, 0, 255), 2)  # 外框變紅色表示偵測中
-                            cv2.line(current_frame, [self.reg_x0, int(self.reg_y0 + 0.5 * self.reg_h)],
-                                     [self.reg_x0 + self.reg_w, int(self.reg_y0 + 0.5 * self.reg_h)], (255, 255, 0), 1)
-                            cv2.line(canny, [self.reg_x0, int(self.reg_y0 + 0.5 * self.reg_h)],
-                                     [self.reg_x0 + self.reg_w, int(self.reg_y0 + 0.5 * self.reg_h)], (255, 255, 0), 1)
+                            self.ml = 75
+                        ##### 用邊緣偵測判斷三個辨識區域 #####
+                        for i in range(check.shape[0]):
+                            # 記錄白點
+                            h = self.ml - self.tl
+                            w = check[i, 1, 0] - check[i, 0, 0]
+                            white = 0
+                            for y in range(h):
+                                for x in range(w):
+                                    if canny[self.tl + y, check[i, 0, 0] + x].all():
+                                        white += 1
+                            # 如果偵測區域的白點數量開始遞減時 偵測到的鉚釘數量+1
+                            if self.white_max[i] != self.white_th[i] and self.pass_count[i] != self.count_max[
+                                i] and self.num < 295:
+                                # 如果白點數量遞減且大於閥值
+                                if white - self.white_max[i] < 0 and white > self.white_th[i]:
+                                    self.pass_count[i] += 1
+                                    self.white_max[i] = self.white_th[i]  # 把最大值取代成閥值以結束偵測鉚釘的狀態
+                                else:
+                                    # 更新最大白點數量
+                                    self.white_max[i] = white
+                            # 截圖過後 白點數量小於閥值時重置最大白點數量
+                            elif white < self.white_th[i]:
+                                self.white_max[i] = white
+                        ##### 用時間判斷三個辨識區域 #####
+                        if self.time_count[0] < self.count_max[0]:
+                            # 截圖後過6幀更新鉚釘數量
+                            if self.num == (self.cut_left[self.time_count[0]] + 6):
+                                self.time_count[0] += 1
+                                if self.time_count[0] - self.pass_count[0] - self.loss_count[0] != 0:
+                                    self.loss_count[0] += 1
+                                    self.error = True
+                                    print('左邊第' + str(self.time_count[0]) + '顆鉚釘異常')
 
-                            curTime = time.time() - self.startTime
-                            self.focus.append(self.cam.get(cv2.CAP_PROP_self.focus))
-                            num += 1
-                            if self.save_pic:
-                                name = 'cur_reg' + f'{num}'.rjust(3, '0')
-                                cv2.imwrite(f"C:/Users/ccu/Documents/oCam/test/{name}.jpg", cmr_region)  # 把當前的完成圖儲存
-                else:
-                    cv2.drawContours(current_frame, [region_list], -1, (0, 255, 255), 2)  # 外框變黃色表示閒置
-                    cv2.line(current_frame, [self.reg_x0, int(self.reg_y0 + 0.5 * self.reg_h)],
-                             [self.reg_x0 + self.reg_w, int(self.reg_y0 + 0.5 * self.reg_h)], (255, 255, 0), 1)
-                    cv2.line(canny, [self.reg_x0, int(self.reg_y0 + 0.5 * self.reg_h)],
-                             [self.reg_x0 + self.reg_w, int(self.reg_y0 + 0.5 * self.reg_h)], (255, 255, 0), 1)
+                        if self.time_count[1] < self.count_max[1]:
+                            # 截圖後過6幀更新鉚釘數量
+                            if self.num == (self.cut_middle[self.time_count[1]] + 6):
+                                self.time_count[1] += 1
+                                if self.time_count[1] - self.pass_count[1] - self.loss_count[1] != 0:
+                                    self.loss_count[1] += 1
+                                    self.error = True
+                                    print('中間第' + str(self.time_count[1]) + '顆鉚釘異常')
 
-                if self.save_pic:
-                    # 顯示特效表示開啟存圖模式
-                    cv2.circle(current_frame, [int(self.reg_x0 + 10), self.reg_y0 - 15], 5, (0, 0, 255), -1)
-                    cv2.putText(current_frame, 'rec', (int(self.reg_x0 + 20), self.reg_y0 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
-                                (0, 0, 255), 2)
+                        if self.time_count[2] < self.count_max[2]:
+                            # 截圖後過6幀更新鉚釘數量
+                            if self.num == (self.cut_right[self.time_count[2]] + 6):
+                                self.time_count[2] += 1
+                                if self.time_count[2] - self.pass_count[2] - self.loss_count[2] != 0:
+                                    self.loss_count[2] += 1
+                                    self.error = True
+                                    print('右邊第' + str(self.time_count[2]) + '顆鉚釘異常')
+                        '''結束檢查鉚釘'''
+                        # 當前幀數
+                        cv2.putText(current_frame, str(self.num),
+                                    (int(self.reg_x0 + 10), self.reg_y0 + self.reg_h - 15),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                        # 比對結果
+                        cv2.putText(current_frame, 'Rivet', (int(self.reg_x0 + 10), self.reg_y0 + self.bl + 25),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                        for i in range(check.shape[0]):
+                            # 鉚釘數量
+                            cv2.putText(current_frame, str(self.pass_count[i]),
+                                        (int(self.reg_x0 + check[i, 0, 0] / 2 + check[i, 1, 0] / 2),
+                                         self.reg_y0 + self.bl + 25),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                        # 在畫面標記
+                        cv2.line(current_frame, [self.reg_x0, self.reg_y0 + self.tl],
+                                 [self.reg_x0 + self.reg_w, self.reg_y0 + self.tl], (0, 255, 255), 1)
+                        cv2.line(current_frame, [self.reg_x0, self.reg_y0 + self.ml],
+                                 [self.reg_x0 + self.reg_w, self.reg_y0 + self.ml], (255, 0, 255), 1)
+                        cv2.line(current_frame, [self.reg_x0, self.reg_y0 + self.bl],
+                                 [self.reg_x0 + self.reg_w, self.reg_y0 + self.bl], (255, 255, 0), 1)
+                        cv2.rectangle(current_frame, (check[0, 0] + [self.reg_x0, self.reg_y0]),
+                                      (check[0, 1] + [self.reg_x0, self.reg_y0]),
+                                      (255, 0, 0), 1)
+                        cv2.rectangle(current_frame, (check[1, 0] + [self.reg_x0, self.reg_y0]),
+                                      (check[1, 1] + [self.reg_x0, self.reg_y0]),
+                                      (0, 255, 0), 1)
+                        cv2.rectangle(current_frame, (check[2, 0] + [self.reg_x0, self.reg_y0]),
+                                      (check[2, 1] + [self.reg_x0, self.reg_y0]),
+                                      (0, 0, 255), 1)
 
-
+                        cv2.line(canny, [0, self.tl], [int(current_frame.shape[1]), self.tl], (0, 255, 255), 1)
+                        cv2.line(canny, [0, self.ml], [int(current_frame.shape[1]), self.ml], (255, 0, 255), 1)
+                        cv2.line(canny, [0, self.bl], [int(current_frame.shape[1]), self.bl], (255, 255, 0), 1)
+                        cv2.rectangle(canny, (check[0, 0]), (check[0, 1]), (255, 0, 0), 1)
+                        cv2.rectangle(canny, (check[1, 0]), (check[1, 1]), (0, 255, 0), 1)
+                        cv2.rectangle(canny, (check[2, 0]), (check[2, 1]), (0, 0, 255), 1)
+                        '''更新時間'''
+                        self.curTime = time.time() - self.startTime
+                        self.num += 1
                 self.rawdata.emit(current_frame)  # 發送影像
             else:  # 例外處理
-                print("Warning!!!")
+                self.warning_display.setText("[Error] 相機連線失敗")
                 self.connect = False
             self.r = self.board.digital[7].read()
             self.g = self.board.digital[6].read()
+
     def open(self):
         """ 開啟攝影機影像讀取功能 """
         if self.connect:
@@ -410,7 +541,6 @@ class Camera(QtCore.QThread):  # 繼承 QtCore.QThread 來建立 Camera 類別
             self.running = False  # 關閉讀取狀態
             time.sleep(1)
             self.cam.release()  # 釋放攝影機
-
 
 
 if __name__ == "__main__":
